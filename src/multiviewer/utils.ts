@@ -1,23 +1,47 @@
-import { sleep } from "@/utils.js";
 import Centra from "centra";
+import { FireConsole } from "../console.js";
+import {
+  chequeredFlag,
+  doubleYellowFlag,
+  drsDisabled,
+  drsEnabled,
+  fastestLap,
+  greenFlag,
+  redFlag,
+  resetToDefaultLighting,
+  safetyCarDeployed,
+  safetyCarEnding,
+  yellowFlag,
+} from "../govee/lightingModes.js";
+import { sleep } from "../utils.js";
 import ENV from "./env.js";
 import {
+  Flags,
   MultiviewerAllDataGraphQL,
   MultiviewerHeartbeat,
   RaceControlMessages,
   SessionData,
   SessionInfo,
-  SessionStatus,
   TimingData,
-  TrackStatus,
 } from "./types.js";
 
-const STATE = {
+const CONSOLE = new FireConsole("Multiviewer");
+
+export const STATE = {
   CURRENT_QUALI_STATE: undefined as number | undefined,
   CURRENT_FASTEST_LAP: undefined as number | undefined,
-  TRACK_STATUS: undefined as TrackStatus["Status"] | undefined,
-  SESSION_STATUS: undefined as SessionStatus["Status"] | undefined,
+  SAFETY_CAR: false,
   LATEST_RACE_CONTROL_MESSAGE: undefined as number | undefined,
+  LATEST_FLAG: undefined as Flags | undefined,
+};
+
+export const FLAGS_TO_ACTION = {
+  [Flags.CLEAR]: resetToDefaultLighting,
+  [Flags.GREEN]: greenFlag,
+  [Flags.YELLOW]: yellowFlag,
+  [Flags.DOUBLE_YELLOW]: doubleYellowFlag,
+  [Flags.RED]: redFlag,
+  [Flags.CHEQUERED]: chequeredFlag,
 };
 
 export const requestAllData = async () => {
@@ -26,13 +50,10 @@ export const requestAllData = async () => {
     .body({
       query: `query QueryAllLiveTimingData {
         f1LiveTimingState {
-          RaceControlMessages
+          RaceControlMessages,
           SessionData
           SessionInfo
-          SessionStatus
           TimingData
-          TimingStats
-          TrackStatus
         }
       }`,
     })
@@ -111,51 +132,14 @@ const checkForNewFastestLap = async (data: TimingData["Lines"]) => {
   if (
     typeof STATE.CURRENT_FASTEST_LAP === "number" &&
     fastestLapTimeSeconds >= STATE.CURRENT_FASTEST_LAP
-  ) {
+  )
     return;
-  }
 
   if (typeof STATE.CURRENT_FASTEST_LAP === "number") {
     STATE.CURRENT_FASTEST_LAP = fastestLapTimeSeconds;
-    // TODO: trigger lighting effect here
-  } else {
-    STATE.CURRENT_FASTEST_LAP = fastestLapTimeSeconds;
-  }
-};
-
-const checkTrackStatus = async (
-  trackStatus: TrackStatus["Status"],
-  sessionStatus: SessionStatus["Status"]
-) => {
-  if (
-    STATE.TRACK_STATUS !== trackStatus &&
-    sessionStatus !== "Ends" &&
-    sessionStatus !== "Finalised"
-  ) {
-    STATE.TRACK_STATUS = trackStatus;
-    switch (trackStatus) {
-      case "1": {
-        // green flag
-      }
-      case "2": {
-        // yellow flag
-      }
-      case "4": {
-        // safety car
-      }
-      case "5": {
-        // red flag
-      }
-      case "6": {
-        // virtual safety car
-      }
-      case "7": {
-        // virtual safety car ending
-      }
-      default: {
-      }
-    }
-  }
+    CONSOLE.info(`New fastest lap: ${STATE.CURRENT_FASTEST_LAP} seconds`);
+    await fastestLap().catch(() => {});
+  } else STATE.CURRENT_FASTEST_LAP = fastestLapTimeSeconds;
 };
 
 const checkRaceControlMessages = async (
@@ -163,11 +147,13 @@ const checkRaceControlMessages = async (
 ) => {
   const prevLatestMessageIndex = messages.findIndex(
     (msg) =>
-      +new Date(msg.Utc) <= (STATE.LATEST_RACE_CONTROL_MESSAGE ?? +new Date())
+      +new Date(msg.Utc) > (STATE.LATEST_RACE_CONTROL_MESSAGE ?? +new Date())
   );
   messages =
-    prevLatestMessageIndex === -1
-      ? messages
+    prevLatestMessageIndex === -1 && !STATE.LATEST_RACE_CONTROL_MESSAGE
+      ? messages.slice(-1) // Start off with just the latest message
+      : prevLatestMessageIndex === -1
+      ? []
       : messages.slice(prevLatestMessageIndex);
 
   if (!messages.length) return;
@@ -177,30 +163,57 @@ const checkRaceControlMessages = async (
     STATE.LATEST_RACE_CONTROL_MESSAGE = +new Date(latestMessageUTC);
 
   for (const message of messages) {
+    CONSOLE.debug("message iter");
     if (message.Category === "Flag") {
       switch (message.Flag) {
         case "CLEAR": {
+          // Ignore flag during safety car && red flag
+          if (STATE.SAFETY_CAR || STATE.LATEST_FLAG == Flags.RED) break;
           // Track is clear, reset to default state
+          CONSOLE.info("Track is clear!");
+          STATE.LATEST_FLAG = Flags.CLEAR;
+          await resetToDefaultLighting().catch(() => {});
           break;
         }
         case "GREEN": {
+          // Ignore flag during safety car
+          if (STATE.SAFETY_CAR) break;
           // green flag, display green flag lighting then reset to default state
+          CONSOLE.info("Green Flag");
+          STATE.LATEST_FLAG = Flags.GREEN;
+          await greenFlag().catch(() => {});
           break;
         }
         case "YELLOW": {
+          // Ignore flag during safety car
+          if (STATE.SAFETY_CAR) break;
+          CONSOLE.warn("Yellow Flag");
+          STATE.LATEST_FLAG = Flags.YELLOW;
           // yellow flag, display yellow flag lighting
+          await yellowFlag().catch(() => {});
           break;
         }
         case "DOUBLE YELLOW": {
+          // Ignore flag during safety car
+          if (STATE.SAFETY_CAR) break;
+          CONSOLE.warn("Double Yellow");
+          STATE.LATEST_FLAG = Flags.DOUBLE_YELLOW;
           // double yellow flag, display double yellow flag lighting
+          await doubleYellowFlag().catch(() => {});
           break;
         }
         case "RED": {
+          CONSOLE.error("Red flag, session stopped!");
+          STATE.LATEST_FLAG = Flags.RED;
           // red flag, display red flag lighting
+          await redFlag().catch(() => {});
           break;
         }
         case "CHEQUERED": {
+          CONSOLE.info("Chequered flag!");
+          STATE.LATEST_FLAG = Flags.CHEQUERED;
           // chequered flag, display chequered flag lighting then reset to default state
+          await chequeredFlag().catch(() => {});
           break;
         }
         default: {
@@ -211,11 +224,15 @@ const checkRaceControlMessages = async (
     } else if (message.Category === "Drs") {
       switch (message.Status) {
         case "DISABLED": {
+          CONSOLE.error("DRS Disabled");
           // DRS disabled, display DRS disabled lighting then reset to default state
+          await drsDisabled().catch(() => {});
           break;
         }
         case "ENABLED": {
+          CONSOLE.info("DRS Enabled");
           // DRS enabled, display DRS enabled lighting then reset to default state
+          await drsEnabled().catch(() => {});
           break;
         }
         default: {
@@ -227,12 +244,22 @@ const checkRaceControlMessages = async (
       const virtual = message.Mode === "VIRTUAL SAFETY CAR";
       switch (message.Status) {
         case "DEPLOYED": {
+          CONSOLE.warn(
+            virtual ? "Virtual Safety Car Deployed!" : "Safety Car Deployed!"
+          );
           // safety car deployed, display safety car lighting
+          STATE.SAFETY_CAR = true;
+          await safetyCarDeployed().catch(() => {});
           break;
         }
         case "IN THIS LAP":
         case "ENDING": {
+          CONSOLE.warn(
+            virtual ? "Virtual Safety Car Ending!" : "Safety Car in this lap!"
+          );
+          STATE.SAFETY_CAR = false;
           // safety car ending/in this lap, display safety car ending lighting then reset to default state
+          await safetyCarEnding().catch(() => {});
           break;
         }
       }
@@ -241,15 +268,18 @@ const checkRaceControlMessages = async (
 };
 
 export const startSession = async (): Promise<void> => {
+  CONSOLE.debug("Starting session, checking if live timing is open...");
   // first we'll try and get the clock to see if live timing is open
   const clock = await isLiveTimingOnline();
   if (!clock) {
+    CONSOLE.debug("Live timing is not open! Waiting 2.5s then trying again...");
     await sleep(2500);
     return startSession(); // restart session
   }
 
+  CONSOLE.debug("Starting data fetch interval");
   // Adapted from https://github.com/JustJoostNL/F1MV-Lights-Integration
-  setInterval(async () => {
+  while (true) {
     const liveTiming = await requestAllData();
     if (!liveTiming) return; // do nothing if we can't get data
 
@@ -258,15 +288,14 @@ export const startSession = async (): Promise<void> => {
         RaceControlMessages,
         SessionData,
         SessionInfo,
-        SessionStatus,
         TimingData,
-        TimingStats,
-        TrackStatus,
       },
     } = liveTiming;
 
-    checkQualiState({ SessionInfo, SessionData });
-    checkForNewFastestLap(TimingData.Lines);
-    checkTrackStatus(TrackStatus.Status, SessionStatus.Status);
-  }, 500);
+    if (SessionInfo && SessionData)
+      checkQualiState({ SessionInfo, SessionData });
+    checkForNewFastestLap(TimingData?.Lines);
+    checkRaceControlMessages(RaceControlMessages?.Messages);
+    await sleep(500);
+  }
 };

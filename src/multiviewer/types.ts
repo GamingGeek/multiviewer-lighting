@@ -226,3 +226,12 @@ export type TrackStatus = {
   Status: string;
   Message: string;
 };
+
+export enum Flags {
+  CLEAR,
+  GREEN,
+  YELLOW,
+  DOUBLE_YELLOW,
+  RED,
+  CHEQUERED,
+}
