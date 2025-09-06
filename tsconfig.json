@@ -7,12 +7,6 @@
     "sourceMap": true,
     "outDir": "dist/",
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@/config/*": ["src/config/*"],
-      "@/govee/*": ["src/govee/*"],
-      "@/multiviewer/*": ["src/multiviewer/*"]
-    },
     "verbatimModuleSyntax": false,
     "erasableSyntaxOnly": false
   },
