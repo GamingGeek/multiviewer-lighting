@@ -294,8 +294,9 @@ export const startSession = async (): Promise<void> => {
 
     if (SessionInfo && SessionData)
       checkQualiState({ SessionInfo, SessionData });
-    checkForNewFastestLap(TimingData?.Lines);
-    checkRaceControlMessages(RaceControlMessages?.Messages);
+    if (TimingData?.Lines) checkForNewFastestLap(TimingData.Lines);
+    if (RaceControlMessages?.Messages)
+      checkRaceControlMessages(RaceControlMessages.Messages);
     await sleep(500);
   }
 };
