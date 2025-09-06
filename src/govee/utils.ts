@@ -66,6 +66,62 @@ export const setDIYScene = async (sceneId: number) => {
   }
 };
 
+export const setSnapshot = async (snapshotId: number) => {
+  const request = await Centra(ENV.BASE_URL, "POST")
+    .path(ENV.DEVICE_CONTROL_ENDPOINT)
+    .header("Govee-API-Key", CONFIG.GOVEE_API_KEY)
+    .body({
+      requestId: `${device.sku}-${device.device}-set-snapshot`,
+      payload: {
+        sku: device.sku,
+        device: device.device,
+        capability: {
+          type: "devices.capabilities.dynamic_scene",
+          instance: "snapshot",
+          value: snapshotId,
+        },
+      },
+    })
+    .send();
+
+  if (request.statusCode !== 200) return false;
+
+  try {
+    const response = (await request.json()) as BasicResponse;
+    return response.capability.state.status === "success";
+  } catch {
+    return false;
+  }
+};
+
+export const toggleDreamview = async (state: boolean) => {
+  const request = await Centra(ENV.BASE_URL, "POST")
+    .path(ENV.DEVICE_CONTROL_ENDPOINT)
+    .header("Govee-API-Key", CONFIG.GOVEE_API_KEY)
+    .body({
+      requestId: `${device.sku}-${device.device}-toggle-dreamview`,
+      payload: {
+        sku: device.sku,
+        device: device.device,
+        capability: {
+          type: "devices.capabilities.toggle",
+          instance: "dreamViewToggle",
+          value: Number(state),
+        },
+      },
+    })
+    .send();
+
+  if (request.statusCode !== 200) return false;
+
+  try {
+    const response = (await request.json()) as BasicResponse;
+    return response.capability.state.status === "success";
+  } catch {
+    return false;
+  }
+};
+
 export const queryDeviceState = async (device: Device) => {
   const request = await Centra(ENV.BASE_URL, "POST")
     .path(ENV.DEVICE_STATE_ENDPOINT)
