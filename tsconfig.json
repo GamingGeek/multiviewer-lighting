@@ -8,9 +8,13 @@
     "outDir": "dist/",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@/config/*": ["src/config/*"],
+      "@/govee/*": ["src/govee/*"],
+      "@/multiviewer/*": ["src/multiviewer/*"]
     },
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+    "erasableSyntaxOnly": false
   },
   "exclude": [
     "./src/config/config.example.ts",
