@@ -17,9 +17,10 @@ export default {
     YELLOW_FLAG: 89012345, // Scene used when there's a yellow flag on track
     DOUBLE_YELLOW_FLAG: 90123456, // Scene used when there's a double yellow flag on track
     RED_FLAG: 12345678, // Scene used when session is stopped due to red flag
-    CHEQUERED_FLAG: 23456789, // Temporary scene for chequered flag, resets to dreamview once all drivers have passed the line
+    CHEQUERED_FLAG: 23456789, // Temporary scene for chequered flag, resets to dreamview after 2 minutes
   },
   SNAPSHOTS: {
     DEFAULT: 12345678, // Snapshot ID for default scene
   },
+  USE_DREAMVIEW: false, // Default scene is dreamview instead of snapshot
 };

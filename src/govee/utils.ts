@@ -1,5 +1,5 @@
-import CONFIG from "@/config/config.js";
 import Centra from "centra";
+import CONFIG from "../config/config.js";
 import ENV from "./env.js";
 import type { BasicResponse, Device, DeviceStateResponse } from "./types.js";
 
