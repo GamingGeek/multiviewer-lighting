@@ -1,0 +1,27 @@
+{
+  "name": "multiviewer-lighting",
+  "version": "1.0.0",
+  "description": "Synchronised lighting for F1 races using Multiviewer & Govee's API",
+  "main": "dist/src/index.js",
+  "repository": "git@github.com:GamingGeek/multiviewer-lighting.git",
+  "author": "Jake Ward <geek@gaminggeek.dev>",
+  "license": "Unlicense",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/src/index.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "centra": "^2.7.0",
+    "dotenv": "^17.2.2",
+    "typescript": "^5.9.2"
+  },
+  "devDependencies": {
+    "@tsconfig/node-ts": "^23.6.1",
+    "@tsconfig/node20": "^20.1.6",
+    "@types/centra": "^2.2.3"
+  },
+  "_moduleAliases": {
+    "@": "dist/src"
+  }
+}
