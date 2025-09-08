@@ -1,82 +1,148 @@
 import CONFIG from "../config/config.js";
+import { FireConsole } from "../console.js";
 import { Flags } from "../multiviewer/types.js";
-import { FLAGS_TO_ACTION, STATE } from "../multiviewer/utils.js";
+import { FLAGS_TO_ACTION, FLAGS_TO_NAME, STATE } from "../multiviewer/utils.js";
 import { sleep } from "../utils.js";
-import { setDIYScene, setSnapshot, toggleDreamview } from "./utils.js";
+import {
+  setColorRGB,
+  setDIYScene,
+  setSnapshot,
+  toggleDreamview,
+} from "./utils.js";
+
+const CONSOLE = new FireConsole("Govee|LightingModes");
 
 export const greenFlag = async () => {
+  CONSOLE.info("Starting green flag lighting...");
   await setDIYScene(CONFIG.SCENES.GREEN_FLAG);
 
-  await sleep(11500); // extra 1.5s to account for potential delays in the light updating
+  await sleep(10000);
 
+  CONSOLE.info("Resetting to default lighting after green flag");
   await resetToDefaultLighting();
 };
 
 export const yellowFlag = async () => {
+  CONSOLE.warn("Setting yellow flag lighting");
   await setDIYScene(CONFIG.SCENES.YELLOW_FLAG);
 };
 
 export const doubleYellowFlag = async () => {
+  CONSOLE.warn("Setting double yellow flag lighting");
   await setDIYScene(CONFIG.SCENES.DOUBLE_YELLOW_FLAG);
 };
 
 export const redFlag = async () => {
+  CONSOLE.error("Setting red flag lighting");
   await setDIYScene(CONFIG.SCENES.RED_FLAG);
 };
 
 export const chequeredFlag = async () => {
   await setDIYScene(CONFIG.SCENES.CHEQUERED_FLAG);
-
-  await sleep(123000); // extra 3s
-
-  if (STATE.LATEST_FLAG && STATE.LATEST_FLAG == Flags.CHEQUERED)
-    await resetToDefaultLighting();
 };
 
 export const safetyCarDeployed = async () => {
+  CONSOLE.warn("Starting safety car deployed lighting...");
   await setDIYScene(CONFIG.SCENES.SAFETY_CAR_DEPLOYED);
 
-  await sleep(11500); // extra 1.5s
+  await sleep(10000);
 
+  CONSOLE.warn("Setting safety car ongoing lighting");
   await setDIYScene(CONFIG.SCENES.SAFETY_CAR_ONGOING);
 };
 
 export const safetyCarEnding = async () => {
+  CONSOLE.warn("Setting safety car ending lighting");
   await setDIYScene(CONFIG.SCENES.SAFETY_CAR_IN_THIS_LAP);
 };
 
-export const fastestLap = async () => {
+export const fastestLap = async (time: number) => {
+  CONSOLE.info("Starting fastest lap lighting...");
   await setDIYScene(CONFIG.SCENES.FASTEST_LAP);
 
-  await sleep(6500); // extra 1.5s
+  await sleep(5000);
 
+  // check if a new fastest lap has been set before resetting
+  if (STATE.CURRENT_FASTEST_LAP !== time) return;
+
+  CONSOLE.info(
+    STATE.LATEST_FLAG
+      ? `Resetting to ${
+          FLAGS_TO_NAME[STATE.LATEST_FLAG]
+        } after fastest lap (${time}s)`
+      : `Resetting to default lighting after fastest lap (${time}s)`
+  );
+  if (STATE.LATEST_FLAG)
+    await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
+  else await resetToDefaultLighting();
+};
+
+export const newRaceLeader = async (teamColor: number) => {
+  CONSOLE.info("Switching to team color for new race leader");
+  await setColorRGB(teamColor);
+
+  await sleep(5000);
+
+  CONSOLE.info(
+    STATE.LATEST_FLAG
+      ? `Resetting to ${FLAGS_TO_NAME[STATE.LATEST_FLAG]} after new race leader`
+      : "Resetting to default lighting after new race leader"
+  );
   if (STATE.LATEST_FLAG)
     await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
   else await resetToDefaultLighting();
 };
 
 export const drsEnabled = async () => {
+  CONSOLE.info("Starting DRS Enabled lighting...");
   await setDIYScene(CONFIG.SCENES.DRS_ENABLED);
 
-  await sleep(6500); // extra 1.5s
+  await sleep(5000);
 
+  CONSOLE.info(
+    STATE.LATEST_FLAG
+      ? `Resetting to ${FLAGS_TO_NAME[STATE.LATEST_FLAG]} after DRS Enabled`
+      : "Resetting to default lighting after DRS Enabled"
+  );
   if (STATE.LATEST_FLAG)
     await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
   else await resetToDefaultLighting();
 };
 
 export const drsDisabled = async () => {
+  CONSOLE.error("Starting DRS Disabled lighting...");
   await setDIYScene(CONFIG.SCENES.DRS_DISABLED);
 
-  await sleep(6500); // extra 1.5s
+  await sleep(5000);
 
+  CONSOLE.info(
+    STATE.LATEST_FLAG
+      ? `Resetting to ${FLAGS_TO_NAME[STATE.LATEST_FLAG]} after DRS Disabled`
+      : "Resetting to default lighting after DRS Disabled"
+  );
+  if (STATE.LATEST_FLAG)
+    await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
+  else await resetToDefaultLighting();
+};
+
+export const delay = async () => {
+  CONSOLE.error("Starting delay lighting...");
+  await setDIYScene(CONFIG.SCENES.DELAY);
+
+  await sleep(10000);
+
+  CONSOLE.info(
+    STATE.LATEST_FLAG
+      ? `Resetting to ${FLAGS_TO_NAME[STATE.LATEST_FLAG]} after delay`
+      : "Resetting to default lighting after delay"
+  );
   if (STATE.LATEST_FLAG)
     await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
   else await resetToDefaultLighting();
 };
 
 export const resetToDefaultLighting = async () => {
-  STATE.LATEST_FLAG = undefined; // remove flag
+  STATE.LATEST_FLAG = Flags.CLEAR; // remove flag
   if (CONFIG.USE_DREAMVIEW) await toggleDreamview(true);
   else await setSnapshot(CONFIG.SNAPSHOTS.DEFAULT);
 };
