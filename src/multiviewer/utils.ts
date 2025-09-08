@@ -2,11 +2,13 @@ import Centra from "centra";
 import { FireConsole } from "../console.js";
 import {
   chequeredFlag,
+  delay,
   doubleYellowFlag,
   drsDisabled,
   drsEnabled,
   fastestLap,
   greenFlag,
+  newRaceLeader,
   redFlag,
   resetToDefaultLighting,
   safetyCarDeployed,
@@ -16,23 +18,28 @@ import {
 import { sleep } from "../utils.js";
 import ENV from "./env.js";
 import {
+  Category,
+  DriverList,
   Flags,
   MultiviewerAllDataGraphQL,
   MultiviewerHeartbeat,
   RaceControlMessages,
   SessionData,
   SessionInfo,
+  SubCategory,
   TimingData,
 } from "./types.js";
 
-const CONSOLE = new FireConsole("Multiviewer");
+const CONSOLE = new FireConsole("Multiviewer|Utils");
 
 export const STATE = {
   CURRENT_QUALI_STATE: undefined as number | undefined,
   CURRENT_FASTEST_LAP: undefined as number | undefined,
   SAFETY_CAR: false,
   LATEST_RACE_CONTROL_MESSAGE: undefined as number | undefined,
-  LATEST_FLAG: undefined as Flags | undefined,
+  LATEST_FLAG: Flags.CLEAR as Flags,
+  FLAG_SECTORS: [] as number[],
+  RACE_LEADER: undefined as `${number}` | undefined,
 };
 
 export const FLAGS_TO_ACTION = {
@@ -44,16 +51,27 @@ export const FLAGS_TO_ACTION = {
   [Flags.CHEQUERED]: chequeredFlag,
 };
 
+export const FLAGS_TO_NAME = {
+  [Flags.CLEAR]: "CLEAR",
+  [Flags.GREEN]: "GREEN",
+  [Flags.YELLOW]: "YELLOW",
+  [Flags.DOUBLE_YELLOW]: "DOUBLE_YELLOW",
+  [Flags.RED]: "RED",
+  [Flags.CHEQUERED]: "CHEQUERED",
+};
+
 export const requestAllData = async () => {
   const request = await Centra(ENV.BASE_URL, "POST")
     .path(ENV.GRAPHQL_ENDPOINT)
     .body({
       query: `query QueryAllLiveTimingData {
         f1LiveTimingState {
-          RaceControlMessages,
+          RaceControlMessages
           SessionData
           SessionInfo
           TimingData
+          LapCount
+          DriverList
         }
       }`,
     })
@@ -79,6 +97,238 @@ export const isLiveTimingOnline = async () => {
     .catch(() => null)) as MultiviewerHeartbeat | null;
   if (!response || !response.Utc) return false;
   return new Date(response.Utc);
+};
+
+const enhanceRaceControlMessage = (
+  message: RaceControlMessages["Messages"][0]
+): RaceControlMessages["Messages"][0] & { SubCategory: SubCategory } => {
+  if (message.Message.match(/DRS/i)) {
+    const enabled = message.Message.match(/ENABLED/i);
+    const flag = enabled ? "ENABLED" : "DISABLED";
+
+    return {
+      ...message,
+      SubCategory: SubCategory.Drs,
+      Flag: flag,
+    };
+  }
+
+  if (message.Message.match(/FIRST CAR TO TAKE THE FLAG/i)) {
+    return {
+      ...message,
+      Category: Category.Flag,
+      SubCategory: SubCategory.Flag,
+      Flag: "CHEQUERED",
+    };
+  }
+
+  if (message.Message.match(/BLACK AND ORANGE/i)) {
+    return {
+      ...message,
+      Category: Category.Flag,
+      SubCategory: SubCategory.Flag,
+      Flag: "BLACK AND ORANGE",
+    };
+  }
+
+  if (
+    message.Message.match(/WILL START AT (\d{1,2}:\d{1,2})/i) ||
+    message.Message.match(/WILL BE DELAYED/i) ||
+    message.Message.match(/START OF THE SESSION IS DELAYED/i) ||
+    message.Message.match(/START(ING)? PROCEDURE SUSPENDED/i) ||
+    message.Message.match(/DELAYED START/i) ||
+    message.Message.match(/\d+ MIN SIGNAL WILL BE SHOWN/i)
+  ) {
+    return {
+      ...message,
+      SubCategory: SubCategory.SessionStartDelayed,
+    };
+  }
+
+  if (message.Message.match(/REMAINING SESSION DURATION WILL BE/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.SessionDurationChanged,
+    };
+  }
+
+  if (message.Message.match(/(LAP| TIME .*) DELETED/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.LapTimeDeleted,
+    };
+  }
+
+  if (message.Message.match(/LAPPED CARS MAY (NOW) OVERTAKE/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.LappedCarsMayOvertake,
+    };
+  }
+
+  if (message.Message.match(/LAPPED CARS WILL NOT BE ALLOWED TO OVERTAKE/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.LappedCarsMayNotOvertake,
+    };
+  }
+
+  if (message.Message.match(/NORMAL GRIP CONDITIONS/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.NormalGripConditions,
+    };
+  }
+
+  if (message.Message.match(/(OFF TRACK AND CONTINUED)/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.OffTrackAndContinued,
+    };
+  }
+
+  if (message.Message.match(/(SPUN AND CONTINUED)/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.SpunAndContinued,
+    };
+  }
+
+  if (message.Message.match(/MISSED THE APEX OF TURN/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.MissedApex,
+    };
+  }
+
+  if (message.Message.match(/CAR (.*) STOPPED (AT|ON|NEAR)/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.CarStopped,
+    };
+  }
+
+  if (message.Message.match(/SAFETY CAR/i)) {
+    return { ...message, SubCategory: SubCategory.SafetyCar };
+  }
+
+  if (message.Message.match(/VIRTUAL SAFETY CAR/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.VirtualSafetyCar,
+    };
+  }
+
+  if (message.Message.match(/INCIDENT (.*) NOTED/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.IncidentNoted,
+    };
+  }
+
+  if (message.Message.match(/INCIDENT (.*) UNDER INVESTIGATION/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.IncidentUnderInvestigation,
+    };
+  }
+
+  if (message.Message.match(/INCIDENT (.*) WILL BE INVESTIGATED/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.IncidentInvestigationAfterSession,
+    };
+  }
+
+  if (message.Message.match(/INCIDENT (.*) NO FURTHER ACTION/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.IncidentNoFurtherAction,
+    };
+  }
+
+  if (message.Message.match(/INCIDENT (.*) NO (FURTHER )?INVESTIGATION/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.IncidentNoFurtherInvestigation,
+    };
+  }
+
+  if (message.Message.match(/TIME PENALTY/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.TimePenalty,
+    };
+  }
+
+  if (message.Message.match(/STOP\/GO PENALTY FOR CAR/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.StopGoPenalty,
+    };
+  }
+
+  if (message.Message.match(/TRACK TEST COMPLETED/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.TrackTestCompleted,
+    };
+  }
+
+  if (message.Message.match(/TRACK SURFACE SLIPPERY/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.TrackSurfaceSlippery,
+    };
+  }
+
+  if (message.Message.match(/LOW GRIP CONDITIONS/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.LowGripConditions,
+    };
+  }
+
+  if (message.Message.match(/WET TRACK/i)) {
+    return { ...message, SubCategory: SubCategory.Weather };
+  }
+
+  if (message.Message.match(/RISK OF RAIN/i)) {
+    return { ...message, SubCategory: SubCategory.Weather };
+  }
+
+  if (message.Message.match(/PIT EXIT (OPEN|CLOSED)/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.PitExit,
+    };
+  }
+
+  if (message.Message.match(/PIT ENTRY (OPEN|CLOSED)/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.PitEntry,
+    };
+  }
+
+  if (message.Message.match(/(SESSION|RACE) WILL( NOT| NOT BE)? RESUME/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.SessionResume,
+    };
+  }
+
+  if (message.Message.match(/CORRECTION/i)) {
+    return {
+      ...message,
+      SubCategory: SubCategory.Correction,
+    };
+  }
+
+  return {
+    ...message,
+    SubCategory: SubCategory.Other,
+  };
 };
 
 const checkQualiState = ({
@@ -118,9 +368,7 @@ const parseLapTime = (lapTime: string) => {
 const checkForNewFastestLap = async (data: TimingData["Lines"]) => {
   const fastestLapTimeSeconds = Object.values(data ?? {})
     .map((line) => {
-      if (line.KnockedOut === true) return "";
-      if (line.Retired === true) return "";
-      if (line.Stopped === true) return "";
+      if (line.KnockedOut || line.Retired || line.Stopped) return "";
       return line.BestLapTime?.Value;
     })
     .filter((lapTime) => lapTime !== "")
@@ -138,23 +386,68 @@ const checkForNewFastestLap = async (data: TimingData["Lines"]) => {
   if (typeof STATE.CURRENT_FASTEST_LAP === "number") {
     STATE.CURRENT_FASTEST_LAP = fastestLapTimeSeconds;
     CONSOLE.info(`New fastest lap: ${STATE.CURRENT_FASTEST_LAP} seconds`);
-    await fastestLap().catch(() => {});
+    await fastestLap(fastestLapTimeSeconds).catch(() => {});
   } else STATE.CURRENT_FASTEST_LAP = fastestLapTimeSeconds;
 };
 
-const checkRaceControlMessages = async (
-  messages: RaceControlMessages["Messages"]
+const checkForNewRaceLeader = async (
+  data: TimingData["Lines"],
+  drivers: DriverList
 ) => {
-  const prevLatestMessageIndex = messages.findIndex(
+  const leader = Object.values(data).find((line) => line.Position == "1");
+  if (!leader) return; // unsure if/when this could happen but nothing we can do here
+
+  if (!STATE.RACE_LEADER) {
+    // set state and return
+    STATE.RACE_LEADER = leader.RacingNumber;
+    return;
+  } else if (leader.RacingNumber !== STATE.RACE_LEADER) {
+    // we have a new leader
+    STATE.RACE_LEADER = leader.RacingNumber;
+    const leadingDriver = drivers[leader.RacingNumber],
+      leadingColorHex = leadingDriver.TeamColour,
+      leadingColor = parseInt(leadingColorHex, 16);
+
+    CONSOLE.info(
+      `New Race Leader! ${leadingDriver.FullName} - ${leadingDriver.TeamName}`
+    );
+    await newRaceLeader(leadingColor);
+  }
+};
+
+const checkAllFinished = async (data: TimingData["Lines"], lastLap: number) => {
+  const allOnLast = Object.values(data)
+    .filter((line) => !line.Retired && !line.Stopped && !line.InPit)
+    .every(
+      (line) =>
+        line.NumberOfLaps === lastLap ||
+        (line.NumberOfLaps == lastLap - 1 && line.GapToLeader == "1 L") ||
+        line.MVStatus?.TakenChequered
+    );
+  if (!allOnLast) return;
+
+  if (STATE.LATEST_FLAG == Flags.CHEQUERED) {
+    CONSOLE.info(
+      "Resetting to default lighting after all drivers on track have passed the chequered flag"
+    );
+    await resetToDefaultLighting().catch(() => {});
+  }
+};
+
+const checkRaceControlMessages = async (
+  raceControlMessages: RaceControlMessages["Messages"]
+) => {
+  const prevLatestMessageIndex = raceControlMessages.findIndex(
     (msg) =>
       +new Date(msg.Utc) > (STATE.LATEST_RACE_CONTROL_MESSAGE ?? +new Date())
   );
-  messages =
+  const messages = (
     prevLatestMessageIndex === -1 && !STATE.LATEST_RACE_CONTROL_MESSAGE
-      ? messages.slice(-1) // Start off with just the latest message
+      ? raceControlMessages.slice(-1) // Start off with just the latest message
       : prevLatestMessageIndex === -1
       ? []
-      : messages.slice(prevLatestMessageIndex);
+      : raceControlMessages.slice(prevLatestMessageIndex)
+  ).map(enhanceRaceControlMessage);
 
   if (!messages.length) return;
 
@@ -163,57 +456,112 @@ const checkRaceControlMessages = async (
     STATE.LATEST_RACE_CONTROL_MESSAGE = +new Date(latestMessageUTC);
 
   for (const message of messages) {
-    CONSOLE.debug("message iter");
+    CONSOLE.debug(message);
     if (message.Category === "Flag") {
       switch (message.Flag) {
         case "CLEAR": {
-          // Ignore flag during safety car && red flag
-          if (STATE.SAFETY_CAR || STATE.LATEST_FLAG == Flags.RED) break;
-          // Track is clear, reset to default state
-          CONSOLE.info("Track is clear!");
-          STATE.LATEST_FLAG = Flags.CLEAR;
-          await resetToDefaultLighting().catch(() => {});
+          // Ignore flag during safety car, red and chequered flag
+          if (
+            STATE.SAFETY_CAR ||
+            STATE.LATEST_FLAG === Flags.RED ||
+            STATE.LATEST_FLAG === Flags.CHEQUERED
+          ) {
+            // check if clear in specific sector, filter if so
+            // to ensure we can properly clear when needed
+            if (message.Scope === "Sector")
+              STATE.FLAG_SECTORS = STATE.FLAG_SECTORS.filter(
+                (sector) => sector !== message.Sector
+              );
+            break;
+          }
+          CONSOLE.info(message.Message);
+          if (message.Scope === "Track") {
+            // Track is clear, reset to default state
+            STATE.LATEST_FLAG = Flags.CLEAR;
+            STATE.FLAG_SECTORS = [];
+            await resetToDefaultLighting().catch(() => {});
+          } else if (message.Scope === "Sector") {
+            STATE.FLAG_SECTORS = STATE.FLAG_SECTORS.filter(
+              (sector) => sector !== message.Sector
+            );
+            if (STATE.FLAG_SECTORS.length === 0) {
+              // Track is clear, reset to default state
+              STATE.LATEST_FLAG = Flags.CLEAR;
+              await resetToDefaultLighting().catch(() => {});
+            } else
+              CONSOLE.debug("Not setting to clear flag due to flag sectors", {
+                sectors: STATE.FLAG_SECTORS,
+              });
+          }
           break;
         }
         case "GREEN": {
-          // Ignore flag during safety car
-          if (STATE.SAFETY_CAR) break;
+          // Ignore flag during safety car and chequered flag
+          if (STATE.SAFETY_CAR || STATE.LATEST_FLAG === Flags.CHEQUERED) break;
           // green flag, display green flag lighting then reset to default state
-          CONSOLE.info("Green Flag");
+          CONSOLE.info(message.Message);
           STATE.LATEST_FLAG = Flags.GREEN;
+          STATE.FLAG_SECTORS = [];
           await greenFlag().catch(() => {});
           break;
         }
         case "YELLOW": {
-          // Ignore flag during safety car
-          if (STATE.SAFETY_CAR) break;
-          CONSOLE.warn("Yellow Flag");
-          STATE.LATEST_FLAG = Flags.YELLOW;
-          // yellow flag, display yellow flag lighting
-          await yellowFlag().catch(() => {});
+          CONSOLE.warn(message.Message);
+          // Ignore flag during safety car and chequered flag
+          if (STATE.SAFETY_CAR || STATE.LATEST_FLAG === Flags.CHEQUERED) break;
+          else if (STATE.LATEST_FLAG === Flags.DOUBLE_YELLOW) {
+            // if we're currently in double yellow, we'll check scope & break
+            if (
+              message.Scope === "Sector" &&
+              typeof message.Sector === "number"
+            )
+              STATE.FLAG_SECTORS.push(message.Sector);
+            else if (message.Scope === "Track") STATE.FLAG_SECTORS = [];
+            break;
+          } else if (STATE.LATEST_FLAG !== Flags.YELLOW) {
+            // yellow flag, display yellow flag lighting
+            STATE.LATEST_FLAG = Flags.YELLOW;
+            await yellowFlag().catch(() => {});
+          }
+          if (message.Scope === "Sector" && typeof message.Sector === "number")
+            STATE.FLAG_SECTORS.push(message.Sector);
+          else if (message.Scope === "Track") STATE.FLAG_SECTORS = [];
           break;
         }
         case "DOUBLE YELLOW": {
-          // Ignore flag during safety car
-          if (STATE.SAFETY_CAR) break;
-          CONSOLE.warn("Double Yellow");
+          CONSOLE.warn(message.Message);
+          // Ignore flag during safety car and chequered flag
+          if (STATE.SAFETY_CAR || STATE.LATEST_FLAG === Flags.CHEQUERED) break;
           STATE.LATEST_FLAG = Flags.DOUBLE_YELLOW;
           // double yellow flag, display double yellow flag lighting
           await doubleYellowFlag().catch(() => {});
+          if (message.Scope === "Sector" && typeof message.Sector === "number")
+            STATE.FLAG_SECTORS.push(message.Sector);
+          else if (message.Scope === "Track") STATE.FLAG_SECTORS = [];
           break;
         }
         case "RED": {
           CONSOLE.error("Red flag, session stopped!");
           STATE.LATEST_FLAG = Flags.RED;
+          STATE.FLAG_SECTORS = [];
           // red flag, display red flag lighting
           await redFlag().catch(() => {});
           break;
         }
         case "CHEQUERED": {
+          // scope isn't track for "first to take the flag"
+          if (message.Scope !== "Track") break;
           CONSOLE.info("Chequered flag!");
           STATE.LATEST_FLAG = Flags.CHEQUERED;
+          STATE.FLAG_SECTORS = [];
           // chequered flag, display chequered flag lighting then reset to default state
           await chequeredFlag().catch(() => {});
+
+          // TODO: temp, remove when TakenChequered is available
+          setTimeout(async () => {
+            if ((STATE.LATEST_FLAG = Flags.CHEQUERED))
+              await resetToDefaultLighting().catch(() => {});
+          }, 150_000); // 2.5 mins, surely enough time for all drivers to finish right?
           break;
         }
         default: {
@@ -221,16 +569,16 @@ const checkRaceControlMessages = async (
           break;
         }
       }
-    } else if (message.Category === "Drs") {
+    } else if (message.Category === Category.Drs) {
       switch (message.Status) {
         case "DISABLED": {
-          CONSOLE.error("DRS Disabled");
+          CONSOLE.error(message.Message);
           // DRS disabled, display DRS disabled lighting then reset to default state
           await drsDisabled().catch(() => {});
           break;
         }
         case "ENABLED": {
-          CONSOLE.info("DRS Enabled");
+          CONSOLE.info(message.Message);
           // DRS enabled, display DRS enabled lighting then reset to default state
           await drsEnabled().catch(() => {});
           break;
@@ -240,13 +588,10 @@ const checkRaceControlMessages = async (
           break;
         }
       }
-    } else if (message.Category === "SafetyCar") {
-      const virtual = message.Mode === "VIRTUAL SAFETY CAR";
+    } else if (message.Category === Category.SafetyCar) {
+      CONSOLE.warn(message.Message);
       switch (message.Status) {
         case "DEPLOYED": {
-          CONSOLE.warn(
-            virtual ? "Virtual Safety Car Deployed!" : "Safety Car Deployed!"
-          );
           // safety car deployed, display safety car lighting
           STATE.SAFETY_CAR = true;
           await safetyCarDeployed().catch(() => {});
@@ -254,15 +599,15 @@ const checkRaceControlMessages = async (
         }
         case "IN THIS LAP":
         case "ENDING": {
-          CONSOLE.warn(
-            virtual ? "Virtual Safety Car Ending!" : "Safety Car in this lap!"
-          );
           STATE.SAFETY_CAR = false;
           // safety car ending/in this lap, display safety car ending lighting then reset to default state
           await safetyCarEnding().catch(() => {});
           break;
         }
       }
+    } else if (message.SubCategory === SubCategory.SessionStartDelayed) {
+      CONSOLE.error(message.Message);
+      await delay().catch(() => {});
     }
   }
 };
@@ -277,6 +622,9 @@ export const startSession = async (): Promise<void> => {
     return startSession(); // restart session
   }
 
+  CONSOLE.debug("Starting off with default lighting state");
+  await resetToDefaultLighting();
+
   CONSOLE.debug("Starting data fetch interval");
   // Adapted from https://github.com/JustJoostNL/F1MV-Lights-Integration
   while (true) {
@@ -289,14 +637,23 @@ export const startSession = async (): Promise<void> => {
         SessionData,
         SessionInfo,
         TimingData,
+        LapCount,
+        DriverList,
       },
     } = liveTiming;
 
     if (SessionInfo && SessionData)
       checkQualiState({ SessionInfo, SessionData });
-    if (TimingData?.Lines) checkForNewFastestLap(TimingData.Lines);
+    if (TimingData?.Lines) {
+      if (SessionInfo?.Type == "Qualifying" || SessionInfo.Type == "Race")
+        checkForNewFastestLap(TimingData.Lines);
+      if (SessionInfo?.Type == "Race")
+        checkForNewRaceLeader(TimingData.Lines, DriverList);
+    }
     if (RaceControlMessages?.Messages)
       checkRaceControlMessages(RaceControlMessages.Messages);
+    if (TimingData?.Lines && STATE.LATEST_FLAG === Flags.CHEQUERED)
+      checkAllFinished(TimingData.Lines, LapCount.CurrentLap);
     await sleep(500);
   }
 };
