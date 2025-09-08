@@ -3,7 +3,7 @@ import CONFIG from "../config/config.js";
 import ENV from "./env.js";
 import type { BasicResponse, Device, DeviceStateResponse } from "./types.js";
 
-const device: Device = {
+export const DEFAULT_DEVICE: Device = {
   sku: CONFIG.GOVEE_DEVICE_SKU,
   device: CONFIG.GOVEE_DEVICE_ID,
 };
@@ -13,10 +13,10 @@ export const togglePower = async (state: boolean) => {
     .path(ENV.DEVICE_CONTROL_ENDPOINT)
     .header("Govee-API-Key", CONFIG.GOVEE_API_KEY)
     .body({
-      requestId: `${device.sku}-${device.device}-toggle-power`,
+      requestId: `${DEFAULT_DEVICE.sku}-${DEFAULT_DEVICE.device}-toggle-power`,
       payload: {
-        sku: device.sku,
-        device: device.device,
+        sku: DEFAULT_DEVICE.sku,
+        device: DEFAULT_DEVICE.device,
         capability: {
           type: "devices.capabilities.on_off",
           instance: "powerSwitch",
@@ -43,10 +43,10 @@ export const setDIYScene = async (sceneId: number) => {
     .path(ENV.DEVICE_CONTROL_ENDPOINT)
     .header("Govee-API-Key", CONFIG.GOVEE_API_KEY)
     .body({
-      requestId: `${device.sku}-${device.device}-set-diy-scene`,
+      requestId: `${DEFAULT_DEVICE.sku}-${DEFAULT_DEVICE.device}-set-diy-scene`,
       payload: {
-        sku: device.sku,
-        device: device.device,
+        sku: DEFAULT_DEVICE.sku,
+        device: DEFAULT_DEVICE.device,
         capability: {
           type: "devices.capabilities.dynamic_scene",
           instance: "diyScene",
@@ -71,14 +71,42 @@ export const setSnapshot = async (snapshotId: number) => {
     .path(ENV.DEVICE_CONTROL_ENDPOINT)
     .header("Govee-API-Key", CONFIG.GOVEE_API_KEY)
     .body({
-      requestId: `${device.sku}-${device.device}-set-snapshot`,
+      requestId: `${DEFAULT_DEVICE.sku}-${DEFAULT_DEVICE.device}-set-snapshot`,
       payload: {
-        sku: device.sku,
-        device: device.device,
+        sku: DEFAULT_DEVICE.sku,
+        device: DEFAULT_DEVICE.device,
         capability: {
           type: "devices.capabilities.dynamic_scene",
           instance: "snapshot",
           value: snapshotId,
+        },
+      },
+    })
+    .send();
+
+  if (request.statusCode !== 200) return false;
+
+  try {
+    const response = (await request.json()) as BasicResponse;
+    return response.capability.state.status === "success";
+  } catch {
+    return false;
+  }
+};
+
+export const setColorRGB = async (color: number) => {
+  const request = await Centra(ENV.BASE_URL, "POST")
+    .path(ENV.DEVICE_CONTROL_ENDPOINT)
+    .header("Govee-API-Key", CONFIG.GOVEE_API_KEY)
+    .body({
+      requestId: `${DEFAULT_DEVICE.sku}-${DEFAULT_DEVICE.device}-set-color-rgb`,
+      payload: {
+        sku: DEFAULT_DEVICE.sku,
+        device: DEFAULT_DEVICE.device,
+        capability: {
+          type: "devices.capabilities.color_setting",
+          instance: "colorRgb",
+          value: color,
         },
       },
     })
@@ -99,10 +127,10 @@ export const toggleDreamview = async (state: boolean) => {
     .path(ENV.DEVICE_CONTROL_ENDPOINT)
     .header("Govee-API-Key", CONFIG.GOVEE_API_KEY)
     .body({
-      requestId: `${device.sku}-${device.device}-toggle-dreamview`,
+      requestId: `${DEFAULT_DEVICE.sku}-${DEFAULT_DEVICE.device}-toggle-dreamview`,
       payload: {
-        sku: device.sku,
-        device: device.device,
+        sku: DEFAULT_DEVICE.sku,
+        device: DEFAULT_DEVICE.device,
         capability: {
           type: "devices.capabilities.toggle",
           instance: "dreamViewToggle",
