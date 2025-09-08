@@ -18,6 +18,7 @@ export default {
     DOUBLE_YELLOW_FLAG: 90123456, // Scene used when there's a double yellow flag on track
     RED_FLAG: 12345678, // Scene used when session is stopped due to red flag
     CHEQUERED_FLAG: 23456789, // Temporary scene for chequered flag, resets to dreamview after 2 minutes
+    DELAY: 34567890, // Used when a delay is reported (e.g. a delayed start to a qualifying session or race)
   },
   SNAPSHOTS: {
     DEFAULT: 12345678, // Snapshot ID for default scene
