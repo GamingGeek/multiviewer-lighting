@@ -20,6 +20,8 @@ export type F1LiveTimingState = {
   TimingData: TimingData;
   TimingStats: TimingStats;
   TrackStatus: TrackStatus;
+  LapCount: LapCount;
+  DriverList: DriverList;
 };
 
 export type RaceControlMessages = {
@@ -42,17 +44,51 @@ export enum Category {
   Other = "Other",
   Drs = "Drs",
   SafetyCar = "SafetyCar",
+  CarEvent = "CarEvent",
+}
+
+export enum SubCategory {
+  Drs = "Drs",
+  Flag = "Flag",
+  SessionStartDelayed = "SessionStartDelayed",
+  SessionDurationChanged = "SessionDurationChanged",
+  LapTimeDeleted = "LapTimeDeleted",
+  LappedCarsMayOvertake = "LappedCarsMayOvertake",
+  LappedCarsMayNotOvertake = "LappedCarsMayNotOvertake",
+  NormalGripConditions = "NormalGripConditions",
+  OffTrackAndContinued = "OffTrackAndContinued",
+  SpunAndContinued = "SpunAndContinued",
+  MissedApex = "MissedApex",
+  CarStopped = "CarStopped",
+  SafetyCar = "SafetyCar",
+  VirtualSafetyCar = "VirtualSafetyCar",
+  IncidentNoted = "IncidentNoted",
+  IncidentUnderInvestigation = "IncidentUnderInvestigation",
+  IncidentInvestigationAfterSession = "IncidentInvestigationAfterSession",
+  IncidentNoFurtherAction = "IncidentNoFurtherAction",
+  IncidentNoFurtherInvestigation = "IncidentNoFurtherInvestigation",
+  TimePenalty = "TimePenalty",
+  StopGoPenalty = "StopGoPenalty",
+  TrackTestCompleted = "TrackTestCompleted",
+  TrackSurfaceSlippery = "TrackSurfaceSlippery",
+  LowGripConditions = "LowGripConditions",
+  Weather = "Weather",
+  PitExit = "PitExit",
+  PitEntry = "PitEntry",
+  SessionResume = "SessionResume",
+  Correction = "Correction",
+  Other = "Other",
 }
 
 export type SessionData = {
   Series: any[];
-  StatusSeries: StatusSery[];
+  StatusSeries: StatusSeries[];
 };
 
-export type StatusSery = {
+export type StatusSeries = {
   Utc: Date;
   TrackStatus?: string;
-  SessionStatus?: string;
+  SessionStatus?: SessionStatusValue;
 };
 
 export type SessionInfo = {
@@ -95,9 +131,17 @@ export type Country = {
 };
 
 export type SessionStatus = {
-  Status: string;
-  Started: string;
+  Status: SessionStatusValue;
+  Started: SessionStatusValue;
 };
+
+export type SessionStatusValue =
+  | "Inactive"
+  | "Started"
+  | "Finished"
+  | "Finalised"
+  | "Ends"
+  | "Aborted";
 
 export type TimingData = {
   Lines: { [key: string]: TimingDataLine };
@@ -105,23 +149,6 @@ export type TimingData = {
 };
 
 export type TimingDataLine = {
-  // TimeDiffToFastest: string;
-  // TimeDiffToPositionAhead: string;
-  // Line: number;
-  // Position: string;
-  // ShowPosition: boolean;
-  // RacingNumber: string;
-  // Retired: boolean;
-  // InPit: boolean;
-  // PitOut: boolean;
-  // Stopped: boolean;
-  // Status: number;
-  // Sectors: Sector[];
-  // Speeds: Speeds;
-  // BestLapTime: BestLapTime;
-  // LastLapTime: LastLapTime;
-  // NumberOfLaps: number;
-  // NumberOfPitStops?: number;
   Stats?: TimingDataLineStats[];
   TimeDiffToFastest?: string;
   TimeDiffToPositionAhead?: string;
@@ -131,9 +158,9 @@ export type TimingDataLine = {
   BestLapTimes: BestLapTime[];
   IntervalToPositionAhead?: IntervalToPositionAhead;
   Line: number;
-  Position: string;
+  Position: `${number}`;
   ShowPosition: boolean;
-  RacingNumber: string;
+  RacingNumber: `${number}`;
   Retired: boolean;
   InPit: boolean;
   PitOut: boolean;
@@ -145,6 +172,7 @@ export type TimingDataLine = {
   LastLapTime: LastLapTime;
   NumberOfLaps?: number;
   NumberOfPitStops?: number;
+  MVStatus?: MVStatus;
 };
 
 export interface TimingDataLineStats {
@@ -167,6 +195,18 @@ export type LastLapTime = {
   Status: number;
   OverallFastest: boolean;
   PersonalFastest: boolean;
+};
+
+export type MVStatus = {
+  Stopped: boolean;
+  Retired: boolean;
+  InPit: boolean;
+  PitOut: boolean;
+  ShowPosition: boolean;
+  KnockedOut: boolean;
+  Cutoff: boolean;
+  Outlap: boolean;
+  TakenChequered: boolean;
 };
 
 export type Sector = {
@@ -223,8 +263,40 @@ export type PersonalBestLapTime = {
 };
 
 export type TrackStatus = {
-  Status: string;
-  Message: string;
+  Status: TrackStatusValue;
+  Message: `${keyof typeof TrackStatusValue}`;
+};
+
+export enum TrackStatusValue {
+  AllClear = "1",
+  Yellow = "2",
+  SCStandBy = "3",
+  SCDeployed = "4",
+  Red = "5",
+  VSCDeployed = "6",
+  VSCEnding = "7",
+}
+
+export type LapCount = {
+  CurrentLap: number;
+  TotalLaps: number;
+};
+
+export type DriverList = {
+  [key: `${number}`]: {
+    RacingNumber: string;
+    BroadcastName: string;
+    FullName: string;
+    Tla: string;
+    Line: number;
+    TeamName: string;
+    TeamColour: string;
+    FirstName: string;
+    LastName: string;
+    Reference: string;
+    HeadshotUrl?: string;
+    PublicIdRight: string;
+  };
 };
 
 export enum Flags {
