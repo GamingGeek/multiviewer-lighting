@@ -36,7 +36,9 @@ export const STATE = {
   CURRENT_QUALI_STATE: undefined as number | undefined,
   CURRENT_FASTEST_LAP: undefined as number | undefined,
   SAFETY_CAR: false,
-  LATEST_RACE_CONTROL_MESSAGE: undefined as number | undefined,
+  LATEST_RACE_CONTROL_MESSAGE_TIME: undefined as number | undefined,
+  LATEST_RACE_CONTROL_MESSAGE_CATEGORY: undefined as Category | undefined,
+  LATEST_RACE_CONTROL_MESSAGE_SUBCATEGORY: undefined as SubCategory | undefined,
   LATEST_FLAG: Flags.CLEAR as Flags,
   FLAG_SECTORS: [] as number[],
   RACE_LEADER: undefined as `${number}` | undefined,
@@ -437,23 +439,31 @@ const checkAllFinished = async (data: TimingData["Lines"], lastLap: number) => {
 const checkRaceControlMessages = async (
   raceControlMessages: RaceControlMessages["Messages"]
 ) => {
-  const prevLatestMessageIndex = raceControlMessages.findIndex(
-    (msg) =>
-      +new Date(msg.Utc) > (STATE.LATEST_RACE_CONTROL_MESSAGE ?? +new Date())
+  const enhancedRaceControlMessages = raceControlMessages.map(
+    enhanceRaceControlMessage
   );
-  const messages = (
-    prevLatestMessageIndex === -1 && !STATE.LATEST_RACE_CONTROL_MESSAGE
-      ? raceControlMessages.slice(-1) // Start off with just the latest message
+
+  const prevLatestMessageIndex = enhancedRaceControlMessages.findIndex(
+    (msg) =>
+      +new Date(msg.Utc) >
+        (STATE.LATEST_RACE_CONTROL_MESSAGE_TIME ?? +new Date()) &&
+      msg.Category === STATE.LATEST_RACE_CONTROL_MESSAGE_CATEGORY &&
+      msg.SubCategory === STATE.LATEST_RACE_CONTROL_MESSAGE_SUBCATEGORY
+  );
+  const messages =
+    prevLatestMessageIndex === -1 && !STATE.LATEST_RACE_CONTROL_MESSAGE_TIME
+      ? enhancedRaceControlMessages.slice(-1) // Start off with just the latest message
       : prevLatestMessageIndex === -1
       ? []
-      : raceControlMessages.slice(prevLatestMessageIndex)
-  ).map(enhanceRaceControlMessage);
+      : enhancedRaceControlMessages.slice(prevLatestMessageIndex);
 
   if (!messages.length) return;
 
   const latestMessageUTC = messages.at(-1)?.Utc;
   if (latestMessageUTC)
-    STATE.LATEST_RACE_CONTROL_MESSAGE = +new Date(latestMessageUTC);
+    (STATE.LATEST_RACE_CONTROL_MESSAGE_TIME = +new Date(latestMessageUTC)),
+      (STATE.LATEST_RACE_CONTROL_MESSAGE_CATEGORY = messages.at(-1)?.Category);
+  STATE.LATEST_RACE_CONTROL_MESSAGE_SUBCATEGORY = messages.at(-1)?.SubCategory;
 
   for (const message of messages) {
     CONSOLE.debug(message);
