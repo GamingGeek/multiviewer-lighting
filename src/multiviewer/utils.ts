@@ -447,8 +447,8 @@ const checkRaceControlMessages = async (
     (msg) =>
       +new Date(msg.Utc) >
         (STATE.LATEST_RACE_CONTROL_MESSAGE_TIME ?? +new Date()) &&
-      msg.Category === STATE.LATEST_RACE_CONTROL_MESSAGE_CATEGORY &&
-      msg.SubCategory === STATE.LATEST_RACE_CONTROL_MESSAGE_SUBCATEGORY
+      msg.Category !== STATE.LATEST_RACE_CONTROL_MESSAGE_CATEGORY &&
+      msg.SubCategory !== STATE.LATEST_RACE_CONTROL_MESSAGE_SUBCATEGORY
   );
   const messages =
     prevLatestMessageIndex === -1 && !STATE.LATEST_RACE_CONTROL_MESSAGE_TIME
