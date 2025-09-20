@@ -29,7 +29,7 @@ export type RaceControlMessages = {
 };
 
 export type Message = {
-  Utc: Date;
+  Utc: `${ReturnType<Date["toISOString"]>}`;
   Category: Category;
   Flag?: string;
   Status?: string;
