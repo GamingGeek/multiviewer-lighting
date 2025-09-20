@@ -569,7 +569,10 @@ const checkRaceControlMessages = async (
           break;
         }
       }
-    } else if (message.Category === Category.Drs) {
+    } else if (
+      message.Category === Category.Drs ||
+      message.SubCategory === SubCategory.Drs
+    ) {
       switch (message.Status) {
         case "DISABLED": {
           CONSOLE.error(message.Message);
