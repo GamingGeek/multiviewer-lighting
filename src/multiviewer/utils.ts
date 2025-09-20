@@ -652,7 +652,11 @@ export const startSession = async (): Promise<void> => {
     }
     if (RaceControlMessages?.Messages)
       checkRaceControlMessages(RaceControlMessages.Messages);
-    if (TimingData?.Lines && STATE.LATEST_FLAG === Flags.CHEQUERED)
+    if (
+      TimingData?.Lines &&
+      STATE.LATEST_FLAG === Flags.CHEQUERED &&
+      LapCount?.CurrentLap
+    )
       checkAllFinished(TimingData.Lines, LapCount.CurrentLap);
     await sleep(500);
   }
