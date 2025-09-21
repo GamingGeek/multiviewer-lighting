@@ -649,6 +649,7 @@ export const startSession = async (): Promise<void> => {
         SessionData,
         SessionInfo,
         TimingData,
+        TrackStatus,
         LapCount,
         DriverList,
       },
@@ -676,6 +677,14 @@ export const startSession = async (): Promise<void> => {
       LapCount?.CurrentLap
     )
       checkAllFinished(TimingData.Lines, LapCount.CurrentLap);
+
+    // Fallback check for track clear status
+    if (
+      TrackStatus?.Message === "AllClear" &&
+      STATE.LATEST_FLAG !== Flags.CLEAR
+    )
+      resetToDefaultLighting().catch(() => {});
+
     await sleep(500);
   }
 };
