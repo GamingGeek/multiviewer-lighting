@@ -15,6 +15,7 @@ import {
   safetyCarEnding,
   yellowFlag,
 } from "../govee/lightingModes.js";
+import { toggleDreamview } from "../govee/utils.js";
 import { sleep } from "../utils.js";
 import ENV from "./env.js";
 import {
@@ -40,6 +41,7 @@ export const STATE = {
   LATEST_FLAG: Flags.CLEAR as Flags,
   FLAG_SECTORS: [] as number[],
   RACE_LEADER: undefined as `${number}` | undefined,
+  RACE_STATE: undefined as SessionInfo["Type"] | undefined,
 };
 
 export const FLAGS_TO_ACTION = {
@@ -431,6 +433,10 @@ const checkAllFinished = async (data: TimingData["Lines"], lastLap: number) => {
       "Resetting to default lighting after all drivers on track have passed the chequered flag"
     );
     await resetToDefaultLighting().catch(() => {});
+    await toggleDreamview(true).catch(() => {});
+
+    // If we're at the end of a race, kill the process
+    if (STATE.RACE_STATE == "Race") process.exit(0);
   }
 };
 
@@ -562,14 +568,8 @@ const checkRaceControlMessages = async (
           CONSOLE.info("Chequered flag!");
           STATE.LATEST_FLAG = Flags.CHEQUERED;
           STATE.FLAG_SECTORS = [];
-          // chequered flag, display chequered flag lighting then reset to default state
+          // chequered flag, display chequered flag lighting
           await chequeredFlag().catch(() => {});
-
-          // TODO: temp, remove when TakenChequered is available
-          setTimeout(async () => {
-            if ((STATE.LATEST_FLAG = Flags.CHEQUERED))
-              await resetToDefaultLighting().catch(() => {});
-          }, 150_000); // 2.5 mins, surely enough time for all drivers to finish right?
           break;
         }
         default: {
@@ -635,6 +635,7 @@ export const startSession = async (): Promise<void> => {
 
   CONSOLE.debug("Starting off with default lighting state");
   await resetToDefaultLighting();
+  await toggleDreamview(true);
 
   CONSOLE.debug("Starting data fetch interval");
   // Adapted from https://github.com/JustJoostNL/F1MV-Lights-Integration
@@ -653,6 +654,12 @@ export const startSession = async (): Promise<void> => {
       },
     } = liveTiming;
 
+    if (SessionInfo?.Type && SessionInfo.Type !== STATE.RACE_STATE) {
+      CONSOLE.info(
+        `Session type changed to ${SessionInfo.Type} - ${SessionInfo.Name}`
+      );
+      STATE.RACE_STATE = SessionInfo.Type;
+    }
     if (SessionInfo && SessionData)
       checkQualiState({ SessionInfo, SessionData });
     if (TimingData?.Lines) {

@@ -96,9 +96,14 @@ export type SessionInfo = {
   SessionStatus: string;
   ArchiveStatus: ArchiveStatus;
   Key: number;
-  Type: string;
+  Type: "Practice" | "Qualifying" | "Race";
   Number: number;
-  Name: string;
+  Name:
+    | `Practice ${number}`
+    | "Qualifying"
+    | "Sprint Qualifying"
+    | "Race"
+    | "Sprint";
   StartDate: Date;
   EndDate: Date;
   GmtOffset: string;
