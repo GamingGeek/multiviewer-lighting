@@ -66,13 +66,14 @@ export const fastestLap = async (time: number) => {
   if (STATE.CURRENT_FASTEST_LAP !== time) return;
 
   CONSOLE.info(
-    STATE.LATEST_FLAG
+    STATE.SAFETY_CAR || STATE.LATEST_FLAG
       ? `Resetting to ${
-          FLAGS_TO_NAME[STATE.LATEST_FLAG]
+          STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
         } after fastest lap (${time}s)`
       : `Resetting to default lighting after fastest lap (${time}s)`
   );
-  if (STATE.LATEST_FLAG)
+  if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
+  else if (STATE.LATEST_FLAG)
     await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
   else await resetToDefaultLighting();
 };
@@ -84,11 +85,14 @@ export const newRaceLeader = async (teamColor: number) => {
   await sleep(5000);
 
   CONSOLE.info(
-    STATE.LATEST_FLAG
-      ? `Resetting to ${FLAGS_TO_NAME[STATE.LATEST_FLAG]} after new race leader`
+    STATE.SAFETY_CAR || STATE.LATEST_FLAG
+      ? `Resetting to ${
+          STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
+        } after new race leader`
       : "Resetting to default lighting after new race leader"
   );
-  if (STATE.LATEST_FLAG)
+  if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
+  else if (STATE.LATEST_FLAG)
     await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
   else await resetToDefaultLighting();
 };
@@ -100,11 +104,14 @@ export const drsEnabled = async () => {
   await sleep(5000);
 
   CONSOLE.info(
-    STATE.LATEST_FLAG
-      ? `Resetting to ${FLAGS_TO_NAME[STATE.LATEST_FLAG]} after DRS Enabled`
+    STATE.SAFETY_CAR || STATE.LATEST_FLAG
+      ? `Resetting to ${
+          STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
+        } after DRS Enabled`
       : "Resetting to default lighting after DRS Enabled"
   );
-  if (STATE.LATEST_FLAG)
+  if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
+  else if (STATE.LATEST_FLAG)
     await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
   else await resetToDefaultLighting();
 };
@@ -116,11 +123,14 @@ export const drsDisabled = async () => {
   await sleep(5000);
 
   CONSOLE.info(
-    STATE.LATEST_FLAG
-      ? `Resetting to ${FLAGS_TO_NAME[STATE.LATEST_FLAG]} after DRS Disabled`
+    STATE.SAFETY_CAR || STATE.LATEST_FLAG
+      ? `Resetting to ${
+          STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
+        } after DRS Disabled`
       : "Resetting to default lighting after DRS Disabled"
   );
-  if (STATE.LATEST_FLAG)
+  if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
+  else if (STATE.LATEST_FLAG)
     await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
   else await resetToDefaultLighting();
 };
@@ -132,11 +142,14 @@ export const delay = async () => {
   await sleep(10000);
 
   CONSOLE.info(
-    STATE.LATEST_FLAG
-      ? `Resetting to ${FLAGS_TO_NAME[STATE.LATEST_FLAG]} after delay`
+    STATE.SAFETY_CAR || STATE.LATEST_FLAG
+      ? `Resetting to ${
+          STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
+        } after delay`
       : "Resetting to default lighting after delay"
   );
-  if (STATE.LATEST_FLAG)
+  if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
+  else if (STATE.LATEST_FLAG)
     await FLAGS_TO_ACTION[STATE.LATEST_FLAG]().catch(() => {});
   else await resetToDefaultLighting();
 };
