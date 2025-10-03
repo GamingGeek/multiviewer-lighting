@@ -177,7 +177,7 @@ export type TimingDataLine = {
   LastLapTime: LastLapTime;
   NumberOfLaps?: number;
   NumberOfPitStops?: number;
-  MVStatus?: MVStatus;
+  MVStatus: MVStatus;
 };
 
 export interface TimingDataLineStats {

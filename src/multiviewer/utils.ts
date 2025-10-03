@@ -72,7 +72,6 @@ export const requestAllData = async () => {
           SessionData
           SessionInfo
           TimingData
-          LapCount
           DriverList
         }
       }`,
@@ -420,15 +419,10 @@ const checkForNewRaceLeader = async (
   }
 };
 
-const checkAllFinished = async (data: TimingData["Lines"], lastLap: number) => {
+const checkAllFinished = async (data: TimingData["Lines"]) => {
   const allOnLast = Object.values(data)
     .filter((line) => !line.Retired && !line.Stopped && !line.InPit)
-    .every(
-      (line) =>
-        line.NumberOfLaps === lastLap ||
-        (line.NumberOfLaps == lastLap - 1 && line.GapToLeader == "1 L") ||
-        line.MVStatus?.TakenChequered
-    );
+    .every((line) => line.MVStatus.TakenChequered);
   if (!allOnLast) return;
 
   if (STATE.LATEST_FLAG == Flags.CHEQUERED) {
@@ -649,7 +643,6 @@ export const startSession = async (): Promise<void> => {
         SessionInfo,
         TimingData,
         TrackStatus,
-        LapCount,
         DriverList,
       },
     } = liveTiming;
@@ -670,12 +663,8 @@ export const startSession = async (): Promise<void> => {
     }
     if (RaceControlMessages?.Messages)
       checkRaceControlMessages(RaceControlMessages.Messages);
-    if (
-      TimingData?.Lines &&
-      STATE.LATEST_FLAG === Flags.CHEQUERED &&
-      LapCount?.CurrentLap
-    )
-      checkAllFinished(TimingData.Lines, LapCount.CurrentLap);
+    if (TimingData?.Lines && STATE.LATEST_FLAG === Flags.CHEQUERED)
+      checkAllFinished(TimingData.Lines);
 
     // Fallback check for track clear status
     if (
