@@ -102,8 +102,11 @@ export const isLiveTimingOnline = async () => {
 };
 
 const enhanceRaceControlMessage = (
-  message: RaceControlMessages["Messages"][0]
+  message: RaceControlMessages["Messages"][0],
+  index: number
 ): RaceControlMessages["Messages"][0] & { SubCategory: SubCategory } => {
+  message.Utc = `${message.Utc}.${index.toString().slice(-3).padStart(3, "0")}`;
+
   if (message.Message.match(/DRS/i)) {
     const enabled = message.Message.match(/ENABLED/i);
     const flag = enabled ? "ENABLED" : "DISABLED";
@@ -448,13 +451,9 @@ const checkRaceControlMessages = async (
   );
 
   const prevLatestMessageIndex = enhancedRaceControlMessages.findIndex(
-    (msg, index) => {
-      msg.Utc = `${msg.Utc}.${index.toString().slice(-3).padStart(3, "0")}`;
-      return (
-        +new Date(msg.Utc) >
-        (STATE.LATEST_RACE_CONTROL_MESSAGE_TIME ?? +new Date())
-      );
-    }
+    (msg, index) =>
+      +new Date(msg.Utc) >
+      (STATE.LATEST_RACE_CONTROL_MESSAGE_TIME ?? +new Date())
   );
   const messages =
     prevLatestMessageIndex === -1 && !STATE.LATEST_RACE_CONTROL_MESSAGE_TIME
