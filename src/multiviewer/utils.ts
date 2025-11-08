@@ -551,6 +551,7 @@ const checkRaceControlMessages = async (
           CONSOLE.error("Red flag, session stopped!");
           STATE.LATEST_FLAG = Flags.RED;
           STATE.FLAG_SECTORS = [];
+          STATE.SAFETY_CAR = false;
           // red flag, display red flag lighting
           await redFlag().catch(() => {});
           break;
