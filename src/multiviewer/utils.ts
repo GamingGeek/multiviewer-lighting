@@ -465,14 +465,12 @@ const checkRaceControlMessages = async (
   for (const message of messages) {
     CONSOLE.debug(message);
     if (message.Category === "Flag") {
+      // Ignore all flags after chequered
+      if (STATE.LATEST_FLAG === Flags.CHEQUERED) continue;
       switch (message.Flag) {
         case "CLEAR": {
           // Ignore flag during safety car, red and chequered flag
-          if (
-            STATE.SAFETY_CAR ||
-            STATE.LATEST_FLAG === Flags.RED ||
-            STATE.LATEST_FLAG === Flags.CHEQUERED
-          ) {
+          if (STATE.SAFETY_CAR || STATE.LATEST_FLAG === Flags.RED) {
             // check if clear in specific sector, filter if so
             // to ensure we can properly clear when needed
             if (message.Scope === "Sector")
@@ -503,8 +501,8 @@ const checkRaceControlMessages = async (
           break;
         }
         case "GREEN": {
-          // Ignore flag during safety car and chequered flag
-          if (STATE.SAFETY_CAR || STATE.LATEST_FLAG === Flags.CHEQUERED) break;
+          // Ignore flag during safety car
+          if (STATE.SAFETY_CAR) break;
           // green flag, display green flag lighting then reset to default state
           CONSOLE.info(message.Message);
           STATE.LATEST_FLAG = Flags.GREEN;
@@ -514,8 +512,8 @@ const checkRaceControlMessages = async (
         }
         case "YELLOW": {
           CONSOLE.warn(message.Message);
-          // Ignore flag during safety car and chequered flag
-          if (STATE.SAFETY_CAR || STATE.LATEST_FLAG === Flags.CHEQUERED) break;
+          // Ignore flag during safety car
+          if (STATE.SAFETY_CAR) break;
           else if (STATE.LATEST_FLAG === Flags.DOUBLE_YELLOW) {
             // if we're currently in double yellow, we'll check scope & break
             if (
@@ -537,8 +535,8 @@ const checkRaceControlMessages = async (
         }
         case "DOUBLE YELLOW": {
           CONSOLE.warn(message.Message);
-          // Ignore flag during safety car and chequered flag
-          if (STATE.SAFETY_CAR || STATE.LATEST_FLAG === Flags.CHEQUERED) break;
+          // Ignore flag during safety car
+          if (STATE.SAFETY_CAR) break;
           STATE.LATEST_FLAG = Flags.DOUBLE_YELLOW;
           // double yellow flag, display double yellow flag lighting
           await doubleYellowFlag().catch(() => {});
@@ -653,6 +651,7 @@ export const startSession = async (): Promise<void> => {
         `Session type changed to ${SessionInfo.Type} - ${SessionInfo.Name}`
       );
       STATE.RACE_STATE = SessionInfo.Type;
+      STATE.LATEST_FLAG = Flags.CLEAR;
     }
     if (SessionInfo && SessionData)
       checkQualiState({ SessionInfo, SessionData });
