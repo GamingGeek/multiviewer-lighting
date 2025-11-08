@@ -41,7 +41,9 @@ export const STATE = {
   LATEST_FLAG: Flags.CLEAR as Flags,
   FLAG_SECTORS: [] as number[],
   RACE_LEADER: undefined as `${number}` | undefined,
-  RACE_STATE: undefined as SessionInfo["Type"] | undefined,
+  RACE_STATE: undefined as
+    | `${SessionInfo["Type"]}-${SessionInfo["Name"]}`
+    | undefined,
 };
 
 export const FLAGS_TO_ACTION = {
@@ -433,7 +435,7 @@ const checkAllFinished = async (data: TimingData["Lines"]) => {
     await toggleDreamview(true).catch(() => {});
 
     // If we're at the end of a race, kill the process
-    if (STATE.RACE_STATE == "Race") process.exit(0);
+    if (STATE.RACE_STATE == "Race-Race") process.exit(0);
   }
 };
 
@@ -646,11 +648,14 @@ export const startSession = async (): Promise<void> => {
       },
     } = liveTiming;
 
-    if (SessionInfo?.Type && SessionInfo.Type !== STATE.RACE_STATE) {
+    if (
+      SessionInfo?.Type &&
+      `${SessionInfo.Type}-${SessionInfo.Name}` !== STATE.RACE_STATE
+    ) {
       CONSOLE.info(
         `Session type changed to ${SessionInfo.Type} - ${SessionInfo.Name}`
       );
-      STATE.RACE_STATE = SessionInfo.Type;
+      STATE.RACE_STATE = `${SessionInfo.Type}-${SessionInfo.Name}`;
       STATE.LATEST_FLAG = Flags.CLEAR;
     }
     if (SessionInfo && SessionData)
