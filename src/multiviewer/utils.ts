@@ -468,7 +468,12 @@ const checkRaceControlMessages = async (
     CONSOLE.debug(message);
     if (message.Category === "Flag") {
       // Ignore all flags after chequered
-      if (STATE.LATEST_FLAG === Flags.CHEQUERED) continue;
+      if (STATE.LATEST_FLAG === Flags.CHEQUERED) {
+        CONSOLE.warn(
+          `Ignoring flag "${message.Flag}" due to chequered state...`,
+        );
+        continue;
+      }
       switch (message.Flag) {
         case "CLEAR": {
           // Ignore flag during safety car, red and chequered flag
@@ -502,6 +507,7 @@ const checkRaceControlMessages = async (
           }
           break;
         }
+        case "OPEN":
         case "GREEN": {
           // Ignore flag during safety car
           if (STATE.SAFETY_CAR) break;
