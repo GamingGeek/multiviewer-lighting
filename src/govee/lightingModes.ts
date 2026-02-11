@@ -70,7 +70,7 @@ export const fastestLap = async (time: number) => {
       ? `Resetting to ${
           STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
         } after fastest lap (${time}s)`
-      : `Resetting to default lighting after fastest lap (${time}s)`
+      : `Resetting to default lighting after fastest lap (${time}s)`,
   );
   if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
   else if (STATE.LATEST_FLAG)
@@ -89,7 +89,7 @@ export const newRaceLeader = async (teamColor: number) => {
       ? `Resetting to ${
           STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
         } after new race leader`
-      : "Resetting to default lighting after new race leader"
+      : "Resetting to default lighting after new race leader",
   );
   if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
   else if (STATE.LATEST_FLAG)
@@ -97,9 +97,9 @@ export const newRaceLeader = async (teamColor: number) => {
   else await resetToDefaultLighting();
 };
 
-export const drsEnabled = async () => {
-  CONSOLE.info("Starting DRS Enabled lighting...");
-  await setDIYScene(CONFIG.SCENES.DRS_ENABLED);
+export const overtakeEnabled = async () => {
+  CONSOLE.info("Starting Overtake Enabled lighting...");
+  await setDIYScene(CONFIG.SCENES.OVERTAKE_ENABLED);
 
   await sleep(5000);
 
@@ -107,8 +107,8 @@ export const drsEnabled = async () => {
     STATE.SAFETY_CAR || STATE.LATEST_FLAG
       ? `Resetting to ${
           STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
-        } after DRS Enabled`
-      : "Resetting to default lighting after DRS Enabled"
+        } after Overtake Enabled`
+      : "Resetting to default lighting after Overtake Enabled",
   );
   if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
   else if (STATE.LATEST_FLAG)
@@ -116,9 +116,9 @@ export const drsEnabled = async () => {
   else await resetToDefaultLighting();
 };
 
-export const drsDisabled = async () => {
-  CONSOLE.error("Starting DRS Disabled lighting...");
-  await setDIYScene(CONFIG.SCENES.DRS_DISABLED);
+export const overtakeDisabled = async () => {
+  CONSOLE.error("Starting Overtake Disabled lighting...");
+  await setDIYScene(CONFIG.SCENES.OVERTAKE_DISABLED);
 
   await sleep(5000);
 
@@ -126,8 +126,8 @@ export const drsDisabled = async () => {
     STATE.SAFETY_CAR || STATE.LATEST_FLAG
       ? `Resetting to ${
           STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
-        } after DRS Disabled`
-      : "Resetting to default lighting after DRS Disabled"
+        } after Overtake Disabled`
+      : "Resetting to default lighting after Overtake Disabled",
   );
   if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
   else if (STATE.LATEST_FLAG)
@@ -146,7 +146,7 @@ export const delay = async () => {
       ? `Resetting to ${
           STATE.SAFETY_CAR ? "Safety Car" : FLAGS_TO_NAME[STATE.LATEST_FLAG]
         } after delay`
-      : "Resetting to default lighting after delay"
+      : "Resetting to default lighting after delay",
   );
   if (STATE.SAFETY_CAR) await safetyCarDeployed().catch(() => {});
   else if (STATE.LATEST_FLAG)

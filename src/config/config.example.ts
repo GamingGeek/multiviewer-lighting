@@ -8,8 +8,8 @@ export default {
   SCENES: {
     // current scenes, may add more in the future
     GREEN_FLAG: 12345678, // Temporary scene for green flag, resets to dreamview after 10 seconds
-    DRS_ENABLED: 23456789, // Temporary scene for DRS enabled, resets to dreamview after 5 seconds
-    DRS_DISABLED: 34567890, // Temporary scene for DRS disabled, resets to dreamview after 5 seconds
+    OVERTAKE_ENABLED: 23456789, // Temporary scene for overtake enabled (rest in peace DRS), resets to dreamview after 5 seconds
+    OVERTAKE_DISABLED: 34567890, // Temporary scene for overtake disabled, resets to dreamview after 5 seconds
     FASTEST_LAP: 45678901, // Temporary scene for fastest lap, resets to dreamview after 5 seconds
     SAFETY_CAR_DEPLOYED: 56789012, // Temporary scene when safety car is deployed, switches to ongoing after 10 seconds
     SAFETY_CAR_ONGOING: 67890123, // Scene used after deploy, used until safety car is ending / in this lap

@@ -4,11 +4,11 @@ import {
   chequeredFlag,
   delay,
   doubleYellowFlag,
-  drsDisabled,
-  drsEnabled,
   fastestLap,
   greenFlag,
   newRaceLeader,
+  overtakeDisabled,
+  overtakeEnabled,
   redFlag,
   resetToDefaultLighting,
   safetyCarDeployed,
@@ -104,17 +104,17 @@ export const isLiveTimingOnline = async () => {
 
 const enhanceRaceControlMessage = (
   message: RaceControlMessages["Messages"][0],
-  index: number
+  index: number,
 ): RaceControlMessages["Messages"][0] & { SubCategory: SubCategory } => {
   message.Utc = `${message.Utc}.${index.toString().slice(-3).padStart(3, "0")}`;
 
-  if (message.Message.match(/DRS/i)) {
+  if (message.Message.match(/OVERTAKE/i)) {
     const enabled = message.Message.match(/ENABLED/i);
     const flag = enabled ? "ENABLED" : "DISABLED";
 
     return {
       ...message,
-      SubCategory: SubCategory.Drs,
+      SubCategory: SubCategory.OvertakeMode,
       Flag: flag,
     };
   }
@@ -398,7 +398,7 @@ const checkForNewFastestLap = async (data: TimingData["Lines"]) => {
 
 const checkForNewRaceLeader = async (
   data: TimingData["Lines"],
-  drivers: DriverList
+  drivers: DriverList,
 ) => {
   const leader = Object.values(data).find((line) => line.Position == "1");
   if (!leader) return; // unsure if/when this could happen but nothing we can do here
@@ -415,7 +415,7 @@ const checkForNewRaceLeader = async (
       leadingColor = parseInt(leadingColorHex, 16);
 
     CONSOLE.info(
-      `New Race Leader! ${leadingDriver.FullName} - ${leadingDriver.TeamName}`
+      `New Race Leader! ${leadingDriver.FullName} - ${leadingDriver.TeamName}`,
     );
     await newRaceLeader(leadingColor);
   }
@@ -429,7 +429,7 @@ const checkAllFinished = async (data: TimingData["Lines"]) => {
 
   if (STATE.LATEST_FLAG == Flags.CHEQUERED) {
     CONSOLE.info(
-      "Resetting to default lighting after all drivers on track have passed the chequered flag"
+      "Resetting to default lighting after all drivers on track have passed the chequered flag",
     );
     await resetToDefaultLighting().catch(() => {});
     await toggleDreamview(true).catch(() => {});
@@ -440,23 +440,23 @@ const checkAllFinished = async (data: TimingData["Lines"]) => {
 };
 
 const checkRaceControlMessages = async (
-  raceControlMessages: RaceControlMessages["Messages"]
+  raceControlMessages: RaceControlMessages["Messages"],
 ) => {
   const enhancedRaceControlMessages = raceControlMessages.map(
-    enhanceRaceControlMessage
+    enhanceRaceControlMessage,
   );
 
   const prevLatestMessageIndex = enhancedRaceControlMessages.findIndex(
     (msg, index) =>
       +new Date(msg.Utc) >
-      (STATE.LATEST_RACE_CONTROL_MESSAGE_TIME ?? +new Date())
+      (STATE.LATEST_RACE_CONTROL_MESSAGE_TIME ?? +new Date()),
   );
   const messages =
     prevLatestMessageIndex === -1 && !STATE.LATEST_RACE_CONTROL_MESSAGE_TIME
       ? enhancedRaceControlMessages.slice(-1) // Start off with just the latest message
       : prevLatestMessageIndex === -1
-      ? []
-      : enhancedRaceControlMessages.slice(prevLatestMessageIndex);
+        ? []
+        : enhancedRaceControlMessages.slice(prevLatestMessageIndex);
 
   if (!messages.length) return;
 
@@ -477,7 +477,7 @@ const checkRaceControlMessages = async (
             // to ensure we can properly clear when needed
             if (message.Scope === "Sector")
               STATE.FLAG_SECTORS = STATE.FLAG_SECTORS.filter(
-                (sector) => sector !== message.Sector
+                (sector) => sector !== message.Sector,
               );
             break;
           }
@@ -489,7 +489,7 @@ const checkRaceControlMessages = async (
             await resetToDefaultLighting().catch(() => {});
           } else if (message.Scope === "Sector") {
             STATE.FLAG_SECTORS = STATE.FLAG_SECTORS.filter(
-              (sector) => sector !== message.Sector
+              (sector) => sector !== message.Sector,
             );
             if (STATE.FLAG_SECTORS.length === 0) {
               // Track is clear, reset to default state
@@ -571,21 +571,18 @@ const checkRaceControlMessages = async (
           break;
         }
       }
-    } else if (
-      message.Category === Category.Drs ||
-      message.SubCategory === SubCategory.Drs
-    ) {
+    } else if (message.SubCategory === SubCategory.OvertakeMode) {
       switch (message.Status) {
         case "DISABLED": {
           CONSOLE.error(message.Message);
-          // DRS disabled, display DRS disabled lighting then reset to default state
-          await drsDisabled().catch(() => {});
+          // Overtake disabled, display overtake disabled lighting then reset to default state
+          await overtakeDisabled().catch(() => {});
           break;
         }
         case "ENABLED": {
           CONSOLE.info(message.Message);
-          // DRS enabled, display DRS enabled lighting then reset to default state
-          await drsEnabled().catch(() => {});
+          // Overtake enabled, display overtake enabled lighting then reset to default state
+          await overtakeEnabled().catch(() => {});
           break;
         }
         default: {
@@ -653,7 +650,7 @@ export const startSession = async (): Promise<void> => {
       `${SessionInfo.Type}-${SessionInfo.Name}` !== STATE.RACE_STATE
     ) {
       CONSOLE.info(
-        `Session type changed to ${SessionInfo.Type} - ${SessionInfo.Name}`
+        `Session type changed to ${SessionInfo.Type} - ${SessionInfo.Name}`,
       );
       STATE.RACE_STATE = `${SessionInfo.Type}-${SessionInfo.Name}`;
       STATE.LATEST_FLAG = Flags.CLEAR;

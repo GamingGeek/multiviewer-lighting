@@ -42,13 +42,13 @@ export type Message = {
 export enum Category {
   Flag = "Flag",
   Other = "Other",
-  Drs = "Drs",
   SafetyCar = "SafetyCar",
   CarEvent = "CarEvent",
 }
 
 export enum SubCategory {
-  Drs = "Drs",
+  // Drs = "Drs",
+  OvertakeMode = "OvertakeMode",
   Flag = "Flag",
   SessionStartDelayed = "SessionStartDelayed",
   SessionDurationChanged = "SessionDurationChanged",
