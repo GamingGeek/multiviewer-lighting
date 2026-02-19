@@ -616,6 +616,12 @@ const checkRaceControlMessages = async (
     } else if (message.SubCategory === SubCategory.SessionStartDelayed) {
       CONSOLE.error(message.Message);
       await delay().catch(() => {});
+    } else if (message.SubCategory === SubCategory.SessionResume) {
+      CONSOLE.warn(message.Message);
+      // Reset to clear when we get a restart time
+      STATE.LATEST_FLAG = Flags.CLEAR;
+      STATE.FLAG_SECTORS = [];
+      await resetToDefaultLighting().catch(() => {});
     }
   }
 };
