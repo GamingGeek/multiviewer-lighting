@@ -578,7 +578,7 @@ const checkRaceControlMessages = async (
         }
       }
     } else if (message.SubCategory === SubCategory.OvertakeMode) {
-      switch (message.Status) {
+      switch (message.Flag) {
         case "DISABLED": {
           CONSOLE.error(message.Message);
           // Overtake disabled, display overtake disabled lighting then reset to default state
