@@ -33,7 +33,7 @@ import {
 
 const CONSOLE = new FireConsole("Multiviewer|Utils");
 
-export const STATE = {
+export let STATE = {
   CURRENT_QUALI_STATE: undefined as number | undefined,
   CURRENT_FASTEST_LAP: undefined as number | undefined,
   SAFETY_CAR: false,
@@ -664,8 +664,18 @@ export const startSession = async (): Promise<void> => {
       CONSOLE.info(
         `Session type changed to ${SessionInfo.Type} - ${SessionInfo.Name}`,
       );
-      STATE.RACE_STATE = `${SessionInfo.Type}-${SessionInfo.Name}`;
-      STATE.LATEST_FLAG = Flags.CLEAR;
+      // Reset state fully to avoid broken state
+      // if live timing is opened too early
+      STATE = {
+        CURRENT_QUALI_STATE: undefined,
+        CURRENT_FASTEST_LAP: undefined,
+        SAFETY_CAR: false,
+        LATEST_RACE_CONTROL_MESSAGE_TIME: undefined,
+        LATEST_FLAG: Flags.CLEAR,
+        FLAG_SECTORS: [],
+        RACE_LEADER: undefined,
+        RACE_STATE: `${SessionInfo.Type}-${SessionInfo.Name}`,
+      };
     }
     if (SessionInfo && SessionData)
       checkQualiState({ SessionInfo, SessionData });
