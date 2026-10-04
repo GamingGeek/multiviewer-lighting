@@ -108,9 +108,10 @@ const enhanceRaceControlMessage = (
 ): RaceControlMessages["Messages"][0] & { SubCategory: SubCategory } => {
   message.Utc = `${message.Utc}.${index.toString().slice(-3).padStart(3, "0")}`;
 
-  if (message.Message.match(/OVERTAKE/i)) {
-    const enabled = message.Message.match(/ENABLED/i);
-    const flag = enabled ? "ENABLED" : "DISABLED";
+  if (message.Message.match(/^OVERTAKE/i)) {
+    let flag: string | undefined;
+    if (message.Message.includes("ENABLED")) flag = "ENABLED";
+    else if (message.Message.includes("DISABLED")) flag = "DISABLED";
 
     return {
       ...message,
